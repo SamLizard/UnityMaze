@@ -46,10 +46,14 @@ public class BuildFromList : MonoBehaviour
     public GameObject[] squares;
     void Start()
     {
-        // BasicPoint basicPointTable = InstantiateDefaultBasicPointTable(size);                  // 1. not needed - already in 3.
-        // int[,] tableTryTwo = BuildListOfZeroAndIncreasingNumber(size);                         // 2. not needed - already in 3.
-        int[,] table = CreateMazeList();                                                          // 3.
-        InstantiateMaze(table);                                                                   // 4.
+        // int[,] tableTryThree = BuildListOfZeroAndOne(size);                          // 1. already in 3.
+        // PointThree[,] tablePointThree = BuildListOfPointThrees(size);                // 2. already in 3.
+        int[,] tableTryThree = CreateMazeListThree();                                   // 3.
+        InstantiateMaze(tableTryThree);                                                 // 4.
+        //# build list of zero and one (table[,]) // became 1
+        //# build list in two dimensions of something that contain the possible directions (list of 5 booleans - the fifth is to know if there is at least one direction that is true), and a boolean (did the point already made a connexion?). // became 2.
+        //# create maze (make a count of the number of points that didn't already made a connexion (that stops running when it is equal to 0). // became 3.
+        //# print maze      // it is 4.
     }
 
     private bool IsOutOfBounds(int row, int column)
@@ -60,54 +64,12 @@ public class BuildFromList : MonoBehaviour
             || column < 0;
     }
 
-    private int[,] CreateMazeList()
-    {
-        int[,] tableList = BuildListOfZeroAndIncreasingNumber(size);
-        BasicPoint basicPointTable = InstantiateDefaultBasicPointTable(size);
-        int biggestValueOfBasicPoint = FindBiggestValueOfBasicPoint(basicPointTable);
-        Debug.Log(biggestValueOfBasicPoint + "---------/////////////////-------------------------------------------------");
-        int count = 150; // 50  * biggestValueOfBasicPoint; // just for the testing part.
-        // int basicPointToChoose = 0; // this is the place of the basicPoint in the list of BasicPoints (here its the first basicPoint = basicPointTable)
-        int direction = 0; // the direction from the BasicPoint to the other BasicPoint (when removing the point between them). 0,1,2,3 - the place int the list of tuples *directions*.
-        Point actualPoint = RandomPointFromBasicPoint(basicPointTable); // = null?
-        while (!IsDone(basicPointTable, biggestValueOfBasicPoint) && count >= 0) // 
-        {
-            // if is -1 (is there is no direction)
-            count--;
-            actualPoint = RandomPointFromBasicPoint(basicPointTable);
-            direction = RandomDirectionToRemovingWall(actualPoint, tableList);
-            if (direction != -1)
-            {
-                Debug.Log("374\n" + "direction:" + direction + "\nTableList:\n" + StringList(tableList) + "\nbasicPointTable:\n" + StringBasicPoints(basicPointTable) + "\nactualPoint:\n" + actualPoint.toString());
-                tableList = UpdateTable(tableList, actualPoint, direction, basicPointTable); // that also update the basicPoints
-                //numOfBasicPoints--;  only if the basicPoint has been deleted (check every time home much basicpoints are in the list?)
-            }
-        }
-        // add something that say that it can be chosen only from basicpoints that have one node<Point>.
-        Debug.Log("385\n" + "THE END\nTableList:\n" + StringList(tableList) + "\nbasicPointTable:\n" + StringBasicPoints(basicPointTable) + "\ncount: " + count); // + "\ncount: " + count
-        return tableList;
-    }
-
-    private int[,] UpdateTable(int[,] tableList, Point actualPoint, int direction, BasicPoint basicPointTable)
-    {
-        Debug.Log("383\n" + direction);
-        (int x, int y) = directions[direction];
-        // Debug.Log("385\n" + actualPoint.getRow() + " " + actualPoint.getColumn());
-        int valueOfPointedPoint = tableList[actualPoint.getRow() + 2 * x, actualPoint.getColumn() + 2 * y];
-        if (valueOfPointedPoint != actualPoint.getValue())
-        {
-            Node<Point> nodeToMove = FindBasicPointValue(Math.Min(valueOfPointedPoint, actualPoint.getValue()), actualPoint, direction, basicPointTable);
-            tableList = MoveNodeToOtherBasicPointAndUpdateTableList(nodeToMove, basicPointTable, Math.Max(valueOfPointedPoint, actualPoint.getValue()), tableList);
-        }
-        tableList[actualPoint.getRow() + x, actualPoint.getColumn() + y] = Math.Max(valueOfPointedPoint, actualPoint.getValue());
-        return tableList;
-    }
-
-    private int[,] BuildListOfZeroAndIncreasingNumber(int size)
+    private int[,] BuildListOfZeroAndOne(int size)
     {
         int[,] table = new int[size + 3 - size % 2, size + 3 - size % 2];
         int number = 1;
-        table[1, 0] = number + 1;
+        table[1, 0] = number;
+        table[size, size + 1] = number;
         for (int i = 0; i < size + 2; i++)
         {
             for (int j = 0; j < size + 2; j++)
@@ -117,348 +79,158 @@ public class BuildFromList : MonoBehaviour
                     int value = 0;
                     if (i % 2 == 1 && j % 2 == 1)
                     {
-                        number++;
                         value = number;
                     }
                     table[i, j] = value;
                 }
             }
         }
-        table[size, size + 1] = number;
-        // Debug.Log("TABLE \n" + stringList(table));
         return table;
     }
 
-    private BasicPoint InstantiateDefaultBasicPointTable(int size) // put first and last basicPointsNodes to the adjacent BasicPoints.
+    private PointThree[,] BuildListOfPointThrees(int size)
     {
-        BasicPoint firstBasicPointTable = new BasicPoint(new Node<Point>(new Point(0, 0))); // new BasicPoint(new Node<Point>(new Point(1, 0, 1)))
-        BasicPoint basicPointTable = firstBasicPointTable;
-        int number = 1;
-        for (int i = 0; i < size + 2; i++)
+        // 5 -> 3; 7 -> 4; 9 -> 5
+        int tableLength = (int)Math.Ceiling(size / 2.0);
+        PointThree[,] table = new PointThree[tableLength, tableLength];
+        for (int i = 0; i < tableLength; i++)
         {
-            for (int j = 0; j < size + 2; j++)
+            for (int j = 0; j < tableLength; j++)
             {
-                if (i % 2 == 1 && j % 2 == 1)
+                if (i == 0 || j == 0 || i == tableLength - 1 || j == tableLength - 1)
                 {
-                    number++;
-                    basicPointTable.setNext(new BasicPoint(new Node<Point>(new Point(i, j, number))));
-                    basicPointTable = basicPointTable.getNext();
-                }
-            }
-        }
-        // if (firstBasicPointTable.getNext() != null)
-        // {
-        //     firstBasicPointTable.getNext().getValue().setNext(new Node<Point>(new Point(1, 0, 2))); // putting in the first BasicPoint another node
-        // }
-        // basicPointTable.getValue().setNext(new Node<Point>(new Point(size, size + 1, number)));
-        Debug.Log("252\n" + StringBasicPoints(firstBasicPointTable));
-        return firstBasicPointTable.getNext();
-    }
-
-    private int[,] MoveNodeToOtherBasicPointAndUpdateTableList(Node<Point> nodeToMove, BasicPoint basicPointTable, int valueOfBasicPoint, int[,] tableList)
-    {
-        BasicPoint actualBasicPoint = basicPointTable;
-        while (actualBasicPoint != null)
-        {
-            if (actualBasicPoint.getValue().getValue().getValue() == valueOfBasicPoint)
-            {
-                break;
-            }
-            actualBasicPoint = actualBasicPoint.getNext();
-        }
-        Debug.Log("407\nTest");
-        Debug.Log(StringNodes(nodeToMove));
-        if (nodeToMove == null)
-        {
-            Debug.Log("409\n" + "------------------------------------------");
-        }
-        Node<Point> actualNode = FindFirstNodeOfBasicPoint(nodeToMove.getValue().getValue(), basicPointTable);
-        nodeToMove = actualNode;
-        Debug.Log("421\nactualNode:\n" + StringNodes(actualNode));
-        //tableList[nodeToMove.getValue().getRow(), nodeToMove.getValue().getColumn()] = valueOfBasicPoint;
-        int count = 10000;
-        if (actualNode != null) // go over all the nodes that are in his basicPoint
-        {
-            while (actualNode.getNext() != null && count > 0)
-            {
-                tableList[actualNode.getValue().getRow(), actualNode.getValue().getColumn()] = valueOfBasicPoint;
-                actualNode.getValue().setValue(valueOfBasicPoint);
-                actualNode = actualNode.getNext();
-                count--;
-            }
-            tableList[actualNode.getValue().getRow(), actualNode.getValue().getColumn()] = valueOfBasicPoint;
-            actualNode.getValue().setValue(valueOfBasicPoint);
-        }
-        actualNode.setNext(actualBasicPoint.getValue());
-        actualBasicPoint.setValue(nodeToMove);
-        // nodeToMove.getValue().setValue(valueOfBasicPoint);
-        actualBasicPoint = basicPointTable;
-        if (actualBasicPoint.getValue() == nodeToMove)
-        {
-            // basicPointTable = basicPointTable.getNext(); // I think that it won't work because it changes only the reference of our basicPointTable and let the first "node" intact...
-            basicPointTable.setValue(basicPointTable.getNext().getValue());
-            basicPointTable.setNext(basicPointTable.getNext().getNext());
-        }
-        else
-        {
-            while (actualBasicPoint.getNext() != null)  // the basicPoint that had to stay is gone, and the one that had to go is still here when we talk about the first basicPoint in our list of basicPoints.
-            {   // can be optimised by using getNext().
-                if (actualBasicPoint.getNext().getValue() == nodeToMove)
-                {
-                    actualBasicPoint.setNext(actualBasicPoint.getNext().getNext());
-                    break;
-                }
-                actualBasicPoint = actualBasicPoint.getNext();
-            }
-        }
-        // if (actualBasicPoint.getNext() == null && basicPointTable.getValue() == nodeToMove)
-        // {
-        //     basicPointTable = basicPointTable.getNext();
-        // }
-        return tableList;
-    }
-
-    private Node<Point> FindFirstNodeOfBasicPoint(int value, BasicPoint basicPointTable)
-    {
-        BasicPoint actualBasicPoint = basicPointTable;
-        while (actualBasicPoint != null)
-        {
-            if (actualBasicPoint.getValue().getValue().getValue() == value)
-            {
-                return actualBasicPoint.getValue();
-            }
-            actualBasicPoint = actualBasicPoint.getNext();
-        }
-        Debug.Log("457\n" + value + "\nbasicPointTable:\n" + basicPointTable);
-        return null;
-    }
-
-    private Node<Point> FindBasicPointValue(int pointValue, Point actualPoint, int direction, BasicPoint basicPointTable)
-    {
-        if (pointValue == actualPoint.getValue())
-        {
-            int row = actualPoint.getRow();
-            int column = actualPoint.getColumn();
-            return FindPointNode(pointValue, row, column, basicPointTable);
-        }
-        (int x, int y) = directions[direction];
-        return FindPointNode(pointValue, actualPoint.getRow() + 2 * x, actualPoint.getColumn() + 2 * y, basicPointTable);
-    }
-
-    private Node<Point> FindPointNode(int value, int row, int column, BasicPoint basicPointTable)
-    {
-        BasicPoint actualBasicPoint = basicPointTable;
-        while (actualBasicPoint != null)
-        {
-            if (actualBasicPoint.getValue().getValue().getValue() == value)
-            {
-                Node<Point> actualNodePoint = actualBasicPoint.getValue();
-                while (actualNodePoint != null)
-                {
-                    if (actualNodePoint.getValue().getRow() == row && actualNodePoint.getValue().getColumn() == column)
-                    {
-                        return actualNodePoint;
-                    }
-                    actualNodePoint = actualNodePoint.getNext();
-                }
-            }
-            actualBasicPoint = actualBasicPoint.getNext();
-        }
-        Debug.Log("474\n" + "There is no appropriate Node. Value = " + value + " [" + row + "," + column + "]" + StringBasicPoints(basicPointTable));
-        return null;
-    }
-
-    private int CountNumberOfBasicPoints(BasicPoint firstBasicPoint)
-    {
-        BasicPoint actualBasicPoint = firstBasicPoint;
-        int countBasicPoints = 0;
-        while (actualBasicPoint != null)
-        {
-            countBasicPoints++;
-            actualBasicPoint = actualBasicPoint.getNext();
-        }
-        return countBasicPoints;
-    }
-
-    private int FindBiggestValueOfBasicPoint(BasicPoint firstBasicPoint)
-    {
-        int biggestValue = 0;
-        while (firstBasicPoint != null)
-        {
-            biggestValue = Math.Max(biggestValue, firstBasicPoint.getValue().getValue().getValue());
-            firstBasicPoint = firstBasicPoint.getNext();
-        }
-        return biggestValue;
-    }
-
-    private bool IsDone(BasicPoint firstBasicPoint, int biggestBasicPointValue) // isTheTableComlete
-    {
-        if (firstBasicPoint == null)
-        {
-            return false;
-        }
-        if (firstBasicPoint.getNext() != null || firstBasicPoint.getValue().getValue().getValue() < biggestBasicPointValue)
-        {
-            return false;
-        }
-        Debug.Log("THE END - 538\nfirstBasicPoint:\n" + StringBasicPoints(firstBasicPoint));
-        return true;
-    }
-
-    private int RandomDirectionToRemovingWall(Point actualPoint, int[,] table)
-    {
-        int actualDirection = UnityEngine.Random.Range(0, 23);
-        for (int i = 0; i < 4; i++)
-        {
-            if (IsFreeToBreakWall(actualPoint, table, direction[actualDirection, i]))
-            {
-                return direction[actualDirection, i];
-            }
-        }
-        Debug.Log("//////////////////////////////////////////////////////////////////////////////////////////");
-        return -1;
-        // while (!isDone) // make a table of 24 table of possibilities = table of 24 X 4. then coose a random list. and then do a for (4). 
-        // {
-        //     direction = UnityEngine.Random.Range(0, 3);
-        //     if (IsFreeToBreakWall(actualPoint, table, direction))
-        //     {
-        //         isDone = true;
-        //     }
-        // } 
-        // if there is no directon possible, return -1.
-        // return direction; // add verification that there is another BasicPoint in this direction.
-
-        // int direction = 0;
-        // while (direction < 3)
-        // {
-        //     int rnd = UnityEngine.Random.Range(0, 1000);
-        //     if (rnd > DateTime.Now.Millisecond)
-        //     {
-        //         direction++;
-        //     }
-        // }
-        // return direction;
-    }
-
-    private Point RandomPointFromBasicPoint(BasicPoint basicPointTable)
-    {
-        int iterations = UnityEngine.Random.Range(0, CountNumberOfBasicPoints(basicPointTable)); // random range is inclusif for the small number and exclusif for the big number.
-        BasicPoint actualBasicPoint = basicPointTable;
-        Debug.Log("551\niterations: " + iterations + "\nbasicPointTable:\n" + StringBasicPoints(basicPointTable)); // maxBasicPoint: " + maxBasicPoint + "\n
-        for (int i = 0; i < iterations; i++)
-        {
-            actualBasicPoint = actualBasicPoint.getNext();
-        }
-        if (actualBasicPoint == null)
-        {
-            Debug.Log("558\nbasicPointTable:\n" + StringBasicPoints(basicPointTable));
-        }
-        return RandomPointFromNodePoint(actualBasicPoint.getValue());  // return actualBasicPoint.getValue().getValue(); 
-    }
-
-    private bool IsFreeToBreakWall(Point actualPoint, int[,] table, int actualDirection)
-    {
-        (int x, int y) = directions[actualDirection];
-        if (IsOutOfBounds(actualPoint.getRow() + 2 * x, actualPoint.getColumn() + 2 * y))
-        {
-            int rowX = actualPoint.getRow() + 2 * x;
-            int columnY = actualPoint.getColumn() + 2 * y;
-            Debug.Log("///////////////////////////////////////////////////////+++++++++++++++++++++++++++++++++++++++++" + rowX + "." + columnY);
-            return false;
-        }
-        //if (table[actualPoint.getRow() + x, actualPoint.getColumn() + y] != 0)
-        //{
-        //    return false;
-        //}
-        if ((actualPoint.getRow() == 1 && actualPoint.getColumn() == 0 && actualDirection != 2) || (actualPoint.getRow() == size && actualPoint.getColumn() == size + 1 && actualDirection != 0))
-        {
-            return false;
-            Debug.Log("///////////////////////////////////////////////////////-----------------------------------------");
-        }
-        return true;
-    }
-
-    private Point RandomPointFromNodePoint(Node<Point> firstNodePoint) // add something if there is no Node (if firstNodePoint = null).
-    {
-        int numOfNodes = CountNumberOfNodes(firstNodePoint);
-        if (numOfNodes == 1)
-        {
-            return firstNodePoint.getValue();
-        }
-        Node<Point> actualNode = firstNodePoint;
-        int iteration = UnityEngine.Random.Range(0, numOfNodes - 1);
-        for (int i = 0; i < iteration; i++)
-        {
-            actualNode = actualNode.getNext();
-        }
-        return actualNode.getValue();
-    }
-
-    private int CountNumberOfNodes(Node<Point> firstNode)
-    {
-        Node<Point> actualNode = firstNode;
-        int count = 0;
-        while (actualNode != null)
-        {
-            count++;
-            actualNode = actualNode.getNext();
-        }
-        return count;
-    }
-
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// printing methodes
-
-    private string StringList(int[,] table)
-    {
-        string str = "[";
-        for (int row = 0; row < table.GetLength(0); row++)
-        {
-            for (int column = 0; column < table.GetLength(0); column++)
-            {
-                if (column != table.GetLength(0) - 1)
-                {
-                    str += table[row, column] + "   ,   ";
+                    table[i, j] = new PointThree(new bool[5] { j != 0, i != 0, j != tableLength - 1, i != tableLength - 1, true }); // MakeDirectionsThree(i, j, tableLength)
                 }
                 else
                 {
-                    str += table[row, column];
+                    table[i, j] = new PointThree();
                 }
             }
-            if (row != table.GetLength(0) - 1)
-            {
-                str += "\n";
-            }
         }
-        str += "]";
-        return str;
+        Debug.Log(StringPointThree(table));
+        return table;
     }
 
-    private string StringNodes(Node<Point> firstNode)
+    private string StringPointThree(PointThree[,] table)
     {
-        Node<Point> actualNode = firstNode;
-        string str = "||";
-        while (actualNode != null)
+        int tableLength = (int)Math.Ceiling(size / 2.0);
+        string str = "|";
+        for (int i = 0; i < tableLength; i++)
         {
-            str += " " + actualNode.getValue().toString() + " |";
-            actualNode = actualNode.getNext();
+            for (int j = 0; j < tableLength; j++)
+            {
+                str += "| " + table[i, j].toString() + " ";
+            }
+            str += "\n";
         }
         str += "|";
-        // Debug.Log(str);
         return str;
     }
 
-    private string StringBasicPoints(BasicPoint firstBasicPoint)
+    private int ChoosePointThreeDirection(PointThree actualPoint) //, int row, int column, PointThree[,] tablePointThree, int[,] tableTryThree, int remainingConnexions
     {
-        BasicPoint actualBasicPoint = firstBasicPoint;
-        string str = "|-|";
-        while (actualBasicPoint != null)
+        int directionTable = UnityEngine.Random.Range(0, 23);
+        bool[] pointDirections = actualPoint.getDirections();
+        for (int i = 0; i < 4; i++)
         {
-            str += "\n" + StringNodes(actualBasicPoint.getValue());
-            actualBasicPoint = actualBasicPoint.getNext();
+            if (pointDirections[direction[directionTable, i]])
+            {
+                return direction[directionTable, i];
+            }
         }
-        str += "\n|-|";
-        // Debug.Log(str);
-        return str;
+        // Debug.Log("298\n" + actualPoint.toString()); // + "\nrow: " + row + ". Column: " + column + "\ntableTryThree: " + StringList(tableTryThree) + "\ntablePointThree:\n" + StringPointThree(tablePointThree) + "\nremainingConnections: " + remainingConnexions);
+        return -1; // it never has to come here. check before if the fifth boolean in the pointThree directions table is true.
+    }
+
+    private int NumberOfNewConnections(PointThree[,] tablePointThree, int actualDirection, int row, int column)
+    {
+        int count = 0;
+        if (!tablePointThree[row, column].getConnection())
+        {
+            count++;
+        }
+        (int x, int y) = directions[actualDirection];
+        if (!tablePointThree[row + x, column + y].getConnection())
+        {
+            count++;
+        }
+        // Debug.Log("315\nactualPoint: " + tablePointThree[row, column].toString() + "\npointedPoint: " + tablePointThree[row + x, column + y].toString() + "\ncount: " + count);
+        return count;
+    }
+
+    private int InverseDirection(int actualDirection)
+    {
+        if (actualDirection % 2 == 0)
+        {
+            if (actualDirection == 0)
+            {
+                return 2;
+            }
+            return 0;
+        }
+        if (actualDirection == 1)
+        {
+            return 3;
+        }
+        return 1;
+    }
+
+    private PointThree[,] UpdatePointThreeTable(PointThree[,] tablePointThree, int actualDirection, int row, int column)
+    {
+        PointThree actualPoint = tablePointThree[row, column];
+        (int x, int y) = directions[actualDirection];
+        PointThree pointedPoint = tablePointThree[row + x, column + y];
+        actualPoint.setConnection();
+        pointedPoint.setConnection();
+        actualPoint.setDirections(actualDirection);
+        pointedPoint.setDirections(InverseDirection(actualDirection)); // 1 <--> 3 ; 0 <--> 2 // make it better
+        return tablePointThree;
+    }
+
+    private int[,] UpdateTableThree(int[,] tableTryThree, int actualDirection, int row, int column)
+    {
+        row = row * 2 + 1;
+        column = column * 2 + 1;
+        tableTryThree[row, column] = 1;
+        (int x, int y) = directions[actualDirection];
+        tableTryThree[row + x, column + y] = 1;
+        tableTryThree[row + 2 * x, column + 2 * y] = 1;
+        return tableTryThree;
+    }
+
+    private int[,] CreateMazeListThree()
+    {
+        int[,] tableTryThree = BuildListOfZeroAndOne(size);
+        PointThree[,] tablePointThree = BuildListOfPointThrees(size);
+        int length = tablePointThree.GetLength(0);
+        int remainingConnections = (int)Math.Pow(length, 2);
+        // int count = 15; // just for the testing part
+        int PointThreeRow = UnityEngine.Random.Range(0, length);
+        int PointThreeColumn = UnityEngine.Random.Range(0, length);
+        int actualDirection = 0;
+        while (remainingConnections > 0) // && count > 0
+        {
+            // count--;
+            //# random pointThree (position in the table)
+            while (!tablePointThree[PointThreeRow, PointThreeColumn].getLastDirection()) // && count > 0
+            {
+                // count--;
+                PointThreeRow = UnityEngine.Random.Range(0, length);
+                PointThreeColumn = UnityEngine.Random.Range(0, length);
+                // Debug.Log("376\nPointThreeRow: " + PointThreeRow + "\nPointThreeColumn: " + PointThreeColumn); // + "\nCount: " + count
+            }
+            // Debug.Log("301\nRow: " + PointThreeRow + "\nColumn: " + PointThreeColumn + "\nPointThree: " + tablePointThree[PointThreeRow, PointThreeColumn].toString());
+
+            //# choose direction
+            actualDirection = ChoosePointThreeDirection(tablePointThree[PointThreeRow, PointThreeColumn]); //, PointThreeRow, PointThreeColumn, tablePointThree, tableTryThree, remainingConnections
+            //# remainingConnextions --; PointThree.setConnection(); two time, if the boolean (connexion) of the PointThree is true.  
+            remainingConnections -= NumberOfNewConnections(tablePointThree, actualDirection, PointThreeRow, PointThreeColumn);
+            //# change tablePointThree - change the two points direction table 
+            tablePointThree = UpdatePointThreeTable(tablePointThree, actualDirection, PointThreeRow, PointThreeColumn);
+            //# change tableTryThree
+            tableTryThree = UpdateTableThree(tableTryThree, actualDirection, PointThreeRow, PointThreeColumn);
+        }
+        return tableTryThree;
     }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////instantiating the maze in Unity. Already in previous commit
