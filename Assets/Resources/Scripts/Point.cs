@@ -1,52 +1,64 @@
-﻿using System;
+using System;
+using System.Linq;
 
 public class Point
 {
-	public int row;
-	public int column;
-	public int value;
+    private bool[] directions;
+    private bool connection; 
+    private Compartiment compartiment;
+    private int remainingDirections;
 
-	public Point(int row, int column, int value)
-	{
-		this.row = row;
-		this.column = column;
-		this.value = value;
-	}
-
-	public Point(int row, int column)
-	{
-		this.row = row;
-		this.column = column;
-		this.value = 0;
-	}
-
-	public int getRow()
+    public Point(bool connection, int compartiment, int row, int column, int tableLength)
     {
-		return this.row;
+        this.directions = new bool[4] { column != 0, row != 0, column != tableLength - 1, row != tableLength - 1 };
+        this.connection = connection;
+        this.compartiment = new Compartiment(compartiment);
+        this.remainingDirections = this.directions.Count(direction => direction) == 2 ? 2 : 3; ;
     }
 
-	public int getColumn()
+    public bool hasRemainingConnections()
     {
-		return this.column;
+        return this.remainingDirections > 0;
     }
 
-	public int getValue()
+    public void setConnection()
     {
-		return this.value;
+        this.connection = true;
     }
 
-	public bool isValue(int value)
+    public bool getConnection()
     {
-		return this.value == value;
+        return this.connection;
     }
 
-	public void setValue(int value)
+    public void setDirections(int place)
     {
-		this.value = value;
+        this.directions[place] = false;
+        this.remainingDirections--;
     }
 
-	public string toString()
+    public bool[] getDirections()
     {
-		return "[(" + this.row + ", " + this.column + "), " + this.value + "]";
+        return this.directions;
+    }
+
+    public Compartiment getCompartiment()
+    {
+        return this.compartiment;
+    }
+
+    public void setCompartiment(Compartiment compartiment)
+    {
+        this.compartiment = compartiment;
+    }
+
+    public string toString()
+    {
+        return "[(" + this.directions[0] + ", " + this.directions[1] + ", " + this.directions[2] + ", " + this.directions[3] + ") " + this.connection + ", " + this.remainingDirections + ", " + this.compartiment.toString() + "]";
+    }
+
+    public bool canConnect(int direction)
+    {
+        return this.directions[direction];
     }
 }

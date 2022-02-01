@@ -7,6 +7,9 @@ public class BuildFromList : MonoBehaviour
 {
     private readonly int square_size = 10;
     public int size;
+                         
+    public GameObject Player;
+    public GameObject Trophy;
 
     private readonly Tuple<int, int>[] directions = new Tuple<int, int>[4] {
         new Tuple<int, int>(0, -1),
@@ -15,11 +18,11 @@ public class BuildFromList : MonoBehaviour
         new Tuple<int, int>(1, 0)
     };
 
-    private readonly int[,] direction = new int[24, 4] {
-        {0, 1, 2, 3 }, {0, 1, 3, 2 }, {0, 2, 1, 3 }, {0, 2, 3, 1 }, {0, 3, 2, 1 }, {0, 3, 1, 2 },
-        {1, 0, 2, 3 }, {1, 0, 3, 2 }, {1, 2, 0, 3 }, {1, 2, 3, 0 }, {1, 3, 2, 0 }, {1, 3, 0, 2 },
-        {2, 0, 1, 3 }, {2, 0, 3, 1 }, {2, 1, 3, 0 }, {2, 1, 0, 3 }, {2, 3, 0, 1 }, {2, 3, 1, 0 },
-        {3, 0, 2, 1 }, {3, 0, 1, 2 }, {3, 1, 2, 0 }, {3, 1, 0, 2 }, {3, 2, 1, 0 }, {3, 2, 0, 1 },
+    private readonly int[][] RandomDirections = new int[24][] {
+        new int[4] {0, 1, 2, 3 }, new int[4] {0, 1, 3, 2 }, new int[4] {0, 2, 1, 3 }, new int[4] {0, 2, 3, 1 }, new int[4] {0, 3, 2, 1 }, new int[4] {0, 3, 1, 2 },
+        new int[4] {1, 0, 2, 3 }, new int[4] {1, 0, 3, 2 }, new int[4] {1, 2, 0, 3 }, new int[4] {1, 2, 3, 0 }, new int[4] {1, 3, 2, 0 }, new int[4] {1, 3, 0, 2 },
+        new int[4] {2, 0, 1, 3 }, new int[4] {2, 0, 3, 1 }, new int[4] {2, 1, 3, 0 }, new int[4] {2, 1, 0, 3 }, new int[4] {2, 3, 0, 1 }, new int[4] {2, 3, 1, 0 },
+        new int[4] {3, 0, 2, 1 }, new int[4] {3, 0, 1, 2 }, new int[4] {3, 1, 2, 0 }, new int[4] {3, 1, 0, 2 }, new int[4] {3, 2, 1, 0 }, new int[4] {3, 2, 0, 1 },
     };
 
     public GameObject[] squares;
@@ -27,11 +30,18 @@ public class BuildFromList : MonoBehaviour
     void Start()
     {
         int seed = (DateTime.Now.Millisecond + 10) * (DateTime.Now.Second + 10);
+        // seed = 1;
+        // seed = 2354;
         UnityEngine.Random.seed = seed;
         Debug.Log(seed); //Debug.Log("ActualTime " + DateTime.Now.Second.ToString() + " " + DateTime.Now.Millisecond.ToString());
 
-        int[,] tableTryThree = CreateMazeListThree();
-        InstantiateMaze(tableTryThree);
+        int startingPosition = ((size - 1) / 2) * -square_size;
+        Player.transform.position = new Vector3(startingPosition, 0.5f, startingPosition - square_size);
+
+        int[,] table = CreateMazeList();
+        InstantiateMaze(table);
+
+        Debug.Log("Time taken: " + Time.realtimeSinceStartup);
     }
 
     private bool IsOutOfBounds(int row, int column)
@@ -42,134 +52,54 @@ public class BuildFromList : MonoBehaviour
             || column < 0;
     }
 
-    private int[,] BuildListOfZeroAndOne(int size)
+    private int[,] InitialBoard(int size)
     {
+        // Remove outer zeros
         int[,] table = new int[size + 3 - size % 2, size + 3 - size % 2];
-        int number = 1;
-        for (int i = 0; i < size + 2; i++)
+        for (int i = 1; i < size + 2; i += 2) // start at 0, finish before size + 2
         {
-            for (int j = 0; j < size + 2; j++)
+            for (int j = 1; j < size + 2; j += 2)
             {
-                if (i % 2 == 1 && j % 2 == 1)
-                {
-                    table[i, j] = number;
-                }
+                table[i, j] = 1;
             }
         }
-        table[1, 0] = number;
-        table[size, size + 1] = number;
+        table[1, 0] = 1;
+        table[size, size + 1] = 1;
         return table;
     }
 
-    private PointThree[,] BuildListOfPointThrees(int size)
+    private Point[,] BuildListOfPoint(int size)
     {
         int tableLength = (int)Math.Ceiling(size / 2.0);
-        PointThree[,] table = new PointThree[tableLength, tableLength];
+        Point[,] table = new Point[tableLength, tableLength];
         for (int i = 0; i < tableLength; i++)
         {
             for (int j = 0; j < tableLength; j++)
             {
-                if (i == 0 || j == 0 || i == tableLength - 1 || j == tableLength - 1)
-                {
-                    table[i, j] = new PointThree(new bool[4] { j != 0, i != 0, j != tableLength - 1, i != tableLength - 1}, false, i * tableLength + j + 1);
-                }
-                else
-                {
-                    table[i, j] = new PointThree(i * tableLength + j + 1);
-                }
+                table[i, j] = new Point(false, i * tableLength + j + 1, i, j, tableLength);
             }
         }
-        // Debug.Log(StringPointThree(table));
         return table;
     }
 
-    // private string StringPointThree(PointThree[,] table)
-    // {
-    //     int tableLength = (int)Math.Ceiling(size / 2.0);
-    //     string str = "|";
-    //     for (int i = 0; i < tableLength; i++)
-    //     {
-    //         for (int j = 0; j < tableLength; j++)
-    //         {
-    //             str += "| " + table[i, j].toString() + " ";
-    //         }
-    //         str += "\n";
-    //     }
-    //     str += "|";
-    //     return str;
-    // }
-
-    private int ChoosePointThreeDirection(PointThree actualPoint, PointThree[,] tablePointThree, int row, int column) // remove : PointThree actualPoint, . Chage it to bool[] pointDirections
+    private int ChoosePointDirection(bool[] pointDirections, Point[,] tablePoint, int row, int column)
     {
-        int directionTable = UnityEngine.Random.Range(0, 23);
-        bool[] pointDirections = actualPoint.getDirections(); // remove that
-        for (int i = 0; i < 4; i++)
+        int directionIndex = UnityEngine.Random.Range(0, 23);
+        foreach (int direction in RandomDirections[directionIndex])
         {
-            if (pointDirections[direction[directionTable, i]])
+            (int x, int y) = directions[direction];
+            if (tablePoint[row, column].canConnect(direction) && tablePoint[row + x, column + y].hasRemainingConnections())
             {
-                (int x, int y) = directions[direction[directionTable, i]];
-                if (tablePointThree[row + x, column + y].canConnect())
-                {
-                    return direction[directionTable, i];
-                }
+                return direction;
             }
         }
         return -1;
     }
 
-    private int NumberOfNewConnections(PointThree[,] tablePointThree, int actualDirection, int row, int column)
-    {
-        int count = 0;
-        if (!tablePointThree[row, column].getConnection())
-        {
-            count++;
-        }
-        (int x, int y) = directions[actualDirection];
-        if (!tablePointThree[row + x, column + y].getConnection())
-        {
-            count++;
-        }
-        return count;
-    }
-
     private int InverseDirection(int actualDirection)
     {
-        if (actualDirection % 2 == 0)
-        {
-            if (actualDirection == 0)
-            {
-                return 2;
-            }
-            return 0;
-        }
-        if (actualDirection == 1)
-        {
-            return 3;
-        }
-        return 1;
+        return (actualDirection + 2) % 4;
     }
-
-    // public Compartiment FindLastCompartiment(Compartiment actualCompartiment)
-    // {
-    //     int count = 20;
-    //     while (actualCompartiment.getNext() != null && count > 0)
-    //     {
-    //         actualCompartiment = actualCompartiment.getNext();
-    //         count--;
-    //     }
-    //     return actualCompartiment;
-    // }
-       
-    // public Compartiment FindSmallerCompatimentThan(Compartiment actualCompartiment, int compartimentBiggestValue)
-    // {
-    //     int count = 20;
-    //     while (actualCompartiment.getNext() != null && actualCompartiment.getNext().getValue() < compartimentBiggestValue && count > 0)
-    //     {
-    //         actualCompartiment = actualCompartiment.getNext();
-    //         count--;
-    //     }
-    //     return actualCompartiment;
-    // }
 
     public void ConnectCompartiments(Compartiment first, Compartiment second)
     {
@@ -200,14 +130,14 @@ public class BuildFromList : MonoBehaviour
         return actualCompartiment;
     }
 
-    public void UpdatePointThreeCompartiment(PointThree actualPoint, PointThree pointedPoint, PointThree[,] tablePointThree)
+    public void UpdatePointCompartiment(Point actualPoint, Point pointedPoint, Point[,] tablePoint)
     {
         int biggestCompartimentValue = Math.Max(actualPoint.getCompartiment().getValue(), pointedPoint.getCompartiment().getValue());
         if (actualPoint.getCompartiment().getValue() == biggestCompartimentValue)
         {
-            PointThree actualPointThree = actualPoint;
+            Point actualPointToTransfer = actualPoint;
             actualPoint = pointedPoint;
-            pointedPoint = actualPointThree;
+            pointedPoint = actualPointToTransfer;
         }
         if (!actualPoint.getConnection() && !pointedPoint.getConnection())
         {
@@ -219,214 +149,80 @@ public class BuildFromList : MonoBehaviour
             Compartiment actualPointLastCompartiment = ConnectToLastCompartimentOf(actualPoint.getCompartiment(), 0);
             Compartiment pointedPointLastCompartiment = ConnectToLastCompartimentOf(pointedPoint.getCompartiment(), 0);
             ConnectCompartiments(actualPointLastCompartiment, pointedPointLastCompartiment);
-            
-            // Code before I used a recursive method:
-
-            //// Debug.Log("228\ntablePointThree:\n" + StringPointThree(tablePointThree) + "\n\n\nactualPoint: " + actualPoint.toString() + "\npointedPoint: " + pointedPoint.toString());
-            // int countToAdd = actualPoint.getCompartiment().getCount();
-            // find the # (the compartiment that is the biggest in the list of the smallest but is smaller than pointedPoint.getCompartiment(). if pointedPoint.getCompartiment() is the biggest, put the last compartiment next to it. and # will be  pointedPoint.getCompartiment()
-            // // Compartiment pointedPointLastCompartiment = FindLastCompartiment(pointedPoint.getCompartiment());
-            // // if (actualPoint.getCompartiment().getNext() == null) 
-            // // {
-            // //     
-            // //     actualPoint.getCompartiment().setNext(pointedPointLastCompartiment);
-            // //     pointedPointLastCompartiment.addCount(countToAdd);
-            // // }
-            // // else
-            // // {
-                // // Compartiment smallerThanPointedPointCompartiment = FindSmallerCompatimentThan(actualPoint.getCompartiment(), pointedPointLastCompartiment.getValue()); // pointedPoint.getCompartiment()
-                // // if (smallerThanPointedPointCompartiment.getNext() != null) // there is a bigger Compartiment than pointedPoint.getCompartiment()
-                // // {
-                // //     if (FindLastCompartiment(smallerThanPointedPointCompartiment).getValue() != pointedPointLastCompartiment.getValue())
-                // //     {
-                // //         //// Debug.Log("241----------------------------------------------------------------");
-                // //         // Compartiment pointedPointSmallerThanBiggestActualPointCompartiment = FindSmallerCompatimentThan(pointedPoint.getCompartiment(), pointedPoint.getCompartiment().getValue()); // enlever count from compartiments that are after pointedPoint compartiment
-                // //         countToAdd = pointedPointLastCompartiment.getCount(); //pointedPoint.getCompartiment()
-                // //         smallerThanPointedPointCompartiment = FindLastCompartiment(smallerThanPointedPointCompartiment);
-                // //         pointedPointLastCompartiment.setNext(smallerThanPointedPointCompartiment); // pointedPoint.getCompartiment()
-                // //         // actualPoint.getCompartiment().setNext(smallerThanPointedPointCompartiment);
-                // //         smallerThanPointedPointCompartiment.addCount(countToAdd);
-                // //     }
-                // // }
-                // // else // pointedPoint.getCompartiment() is the biggest compartiment
-                // // {
-                // //     countToAdd = smallerThanPointedPointCompartiment.getCount(); // +
-                // //     smallerThanPointedPointCompartiment.setNext(pointedPointLastCompartiment); // pointedPoint.getCompartiment()
-                // //     // actualPoint.getCompartiment().setNext(pointedPoint.getCompartiment());
-                // //     pointedPointLastCompartiment.addCount(countToAdd); // pointedPoint.getCompartiment()
-                // // }
-            // // }
-            //// Debug.Log("255\ntablePointThree:\n" + StringPointThree(tablePointThree));
         }
-        // #.getCompartiment().addCount(actualPoint.getCompartiment().getCount());
-        // actualPoint.setCompartiment(#);
-        // Debug.Log("204\n" + StringPointThree(tablePointThree) + "\n\n\n" + actualPoint.toString() + "\n\n\n" + pointedPoint.toString());
     }
 
-    private PointThree[,] UpdatePointThreeTable(PointThree[,] tablePointThree, int actualDirection, int row, int column)
+    private void UpdatePointTable(Point[,] tablePoint, int actualDirection, int row, int column)
     {
-        PointThree actualPoint = tablePointThree[row, column];
+        Point actualPoint = tablePoint[row, column];
         (int x, int y) = directions[actualDirection];
-        PointThree pointedPoint = tablePointThree[row + x, column + y];
-        UpdatePointThreeCompartiment(actualPoint, pointedPoint, tablePointThree);
+        Point pointedPoint = tablePoint[row + x, column + y];
+        UpdatePointCompartiment(actualPoint, pointedPoint, tablePoint);
         actualPoint.setConnection();
         pointedPoint.setConnection();
         actualPoint.setDirections(actualDirection);
-        pointedPoint.setDirections(InverseDirection(actualDirection)); // 1 <--> 3 ; 0 <--> 2 // make it better
-        return tablePointThree;
+        pointedPoint.setDirections(InverseDirection(actualDirection));
     }
 
-    private int[,] UpdateTableThree(int[,] tableTryThree, int actualDirection, int row, int column)
+    private int[,] UpdateTable(int[,] table, int actualDirection, int row, int column)
     {
         row = row * 2 + 1;
         column = column * 2 + 1;
-        tableTryThree[row, column] = 1;
+        table[row, column] = 1;
         (int x, int y) = directions[actualDirection];
-        tableTryThree[row + x, column + y] = 1;
-        tableTryThree[row + 2 * x, column + 2 * y] = 1;
-        return tableTryThree;
+        table[row + x, column + y] = 1;
+        table[row + 2 * x, column + 2 * y] = 1;
+        return table;
     }
 
-    private int[,] CreateMazeListThree()
+    private int[,] CreateMazeList()
     {
-        int[,] tableTryThree = BuildListOfZeroAndOne(size);
-        PointThree[,] tablePointThree = BuildListOfPointThrees(size);
-        int length = tablePointThree.GetLength(0);
-        int remainingConnections = (int)Math.Pow(length, 2);
-        // int fiftyPercentConnections = (int)Math.Pow(length, 2) / 2; // if 100, go out of bound at 219
-        int PointThreeRow = UnityEngine.Random.Range(0, length);
-        int PointThreeColumn = UnityEngine.Random.Range(0, length);
-        int actualDirection = 0;
-        Compartiment lastCompartiment = tablePointThree[length - 1, length - 1].getCompartiment();
-        int numOfCompartiments = lastCompartiment.getValue();
-        
-        // connect every point one or two times
-        tableTryThree = ConnectEveryPoint(tableTryThree, tablePointThree);
-        // Debug.Log("261\ntablePointThree:\n" + StringPointThree(tablePointThree));
-        
+        int[,] table = InitialBoard(size); // call this initialBoard // integrate this in the Point class
+        Point[,] tablePoint = BuildListOfPoint(size);
+        int length = tablePoint.GetLength(0);
+        int PointRow = UnityEngine.Random.Range(0, length);
+        int PointColumn = UnityEngine.Random.Range(0, length);
+        int actualDirection;
+        Compartiment lastCompartiment = tablePoint[length - 1, length - 1].getCompartiment();
+
+        table = ConnectEveryPoint(table, tablePoint); // connect every point one time
         while (!lastCompartiment.isEqual())
         {
-            //# random pointThree (position in the table)
             actualDirection = -1;
             while (actualDirection == -1)
             {
-                PointThreeRow = UnityEngine.Random.Range(0, length);
-                PointThreeColumn = UnityEngine.Random.Range(0, length);
-                if (!tablePointThree[PointThreeRow, PointThreeColumn].canConnect())
+                PointRow = UnityEngine.Random.Range(0, length);
+                PointColumn = UnityEngine.Random.Range(0, length);
+                if (tablePoint[PointRow, PointColumn].hasRemainingConnections())
                 {
-                    actualDirection = -1;
-                }
-                else
-                {
-                    //# choose direction
-                    actualDirection = ChoosePointThreeDirection(tablePointThree[PointThreeRow, PointThreeColumn], tablePointThree, PointThreeRow, PointThreeColumn); 
+                    actualDirection = ChoosePointDirection(tablePoint[PointRow, PointColumn].getDirections(), tablePoint, PointRow, PointColumn);
                 }
             }
-            //# remainingConnextions --; PointThree.setConnection(); two time, if the boolean (connexion) of the PointThree is true.  
-            remainingConnections -= NumberOfNewConnections(tablePointThree, actualDirection, PointThreeRow, PointThreeColumn);
-            //# change tablePointThree - change the two points direction table 
-            tablePointThree = UpdatePointThreeTable(tablePointThree, actualDirection, PointThreeRow, PointThreeColumn);
-            //# change tableTryThree
-            tableTryThree = UpdateTableThree(tableTryThree, actualDirection, PointThreeRow, PointThreeColumn);
+            UpdatePointTable(tablePoint, actualDirection, PointRow, PointColumn);
+            table = UpdateTable(table, actualDirection, PointRow, PointColumn);
         }
-    
-        // Node<PointThree> listNotConnected = new Node<PointThree>(new PointThree(0));
-        // tableTryThree = PointThreeNotConnected(tableTryThree, tablePointThree, listNotConnected);
-        // listNotConnected = listNotConnected.getNext();
-        // Debug.Log("261\ntablePointThree:\n" + StringPointThree(tablePointThree)); // + "\nlistNotConnected: " + StringNodes(listNotConnected));
-        return tableTryThree;
+        InstansiateTrophies(tablePoint.GetLength(0), 4, table);
+        return table;
     }
 
-    public int[,] ConnectEveryPoint(int[,] table, PointThree[,] tablePointThree)
+    public int[,] ConnectEveryPoint(int[,] table, Point[,] tablePoint)
     {
-        int tableLength = tablePointThree.GetLength(0);
-        int actualDirection = 0;
+        int tableLength = tablePoint.GetLength(0);
         for (int row = 0; row < tableLength; row++)
         {
             for (int column = 0; column < tableLength; column++)
             {
-                if (!tablePointThree[row, column].getConnection())
+                if (!tablePoint[row, column].getConnection())
                 {
-                    actualDirection = ChoosePointThreeDirection(tablePointThree[row, column], tablePointThree, row, column);
-                    tablePointThree = UpdatePointThreeTable(tablePointThree, actualDirection, row, column);
-                    table = UpdateTableThree(table, actualDirection, row, column);
+                    int actualDirection = ChoosePointDirection(tablePoint[row, column].getDirections(), tablePoint, row, column);
+                    UpdatePointTable(tablePoint, actualDirection, row, column);
+                    table = UpdateTable(table, actualDirection, row, column);
                 }
             }
         }
         return table;
     }
 
-    //public int[,] PointThreeNotConnected(int[,] table, PointThree[,] tablePointThree, Node<PointThree> first)
-    //{
-    //    Node<PointThree> listNotConnected = first;
-    //    int tableLength = tablePointThree.GetLength(0);
-    //    int actualDirection = 0;
-    //    for (int row = 0; row < tableLength; row++)
-    //    {
-    //        for (int column = 0; column < tableLength; column++)
-    //        {
-    //            if (!tablePointThree[row, column].getConnection())
-    //            {
-    //                if (UnityEngine.Random.Range(1, 100) > 0) // for the testing part, it is always true.
-    //                {
-    //                    actualDirection = ChoosePointThreeDirection(tablePointThree[row, column], tablePointThree, row, column);
-    //                    tablePointThree = UpdatePointThreeTable(tablePointThree, actualDirection, row, column);
-    //                    table = UpdateTableThree(table, actualDirection, row, column);
-    //                }
-    //                else
-    //                {
-    //                    listNotConnected.setNext(new Node<PointThree>(tablePointThree[row, column]));
-    //                    listNotConnected = listNotConnected.getNext();
-    //                }
-    //            }
-    //        }
-    //    }
-    //    return table;
-    //}
-
-    // private string StringNodes(Node<PointThree> firstNode)
-    // {
-    //     if (firstNode != null)
-    //     {
-    //         return "null";
-    //     }
-    //     Node<PointThree> actualNode = firstNode;
-    //     string str = "||";
-    //     while (actualNode != null)
-    //     {
-    //         str += " " + actualNode.getValue().toString() + " |";
-    //         actualNode = actualNode.getNext();
-    //     }
-    //     str += "|";
-    //     return str;
-    // }
-       
-    // private string StringList(int[,] table)
-    // {
-    //     string str = "[";
-    //     for (int row = 0; row < table.GetLength(0); row++)
-    //     {
-    //         for (int column = 0; column < table.GetLength(0); column++)
-    //         {
-    //             if (column != table.GetLength(0) - 1)
-    //             {
-    //                 str += table[row, column] + "   ,   ";
-    //             }
-    //             else
-    //             {
-    //                 str += table[row, column];
-    //             }
-    //         }
-    //         if (row != table.GetLength(0) - 1)
-    //         {
-    //             str += "\n";
-    //         }
-    //     }
-    //     str += "]";
-    //     return str;
-    // }
-
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// instantiating the maze in Unity. Already in previous commits
     private void InstantiateMaze(int[,] table)
     {
         for (int row = 0; row < table.GetLength(0); row++)
@@ -532,11 +328,42 @@ public class BuildFromList : MonoBehaviour
         {
             prefab_place = 4;
         }
+        InstantiateMaze(row, column, rotation, prefab_place, size);
+    }
+    
+    public void InstantiateMaze(int row, int column, int rotation, int prefab_place, int size)
+    {
         int initial_place = ((-size / 2) * square_size) + (square_size / 2) - ((square_size / 2) * (size % 2));
         int place_x = initial_place + row * square_size;  // vertical = x
         int place_z = initial_place + column * square_size;  // horizontale = z
         GameObject square = Instantiate(squares[prefab_place], new Vector3(place_x, 0, place_z), Quaternion.identity);
         square.transform.SetParent(GameObject.FindWithTag("Map").transform);
         square.transform.Rotate(0, rotation, 0);
+    }
+
+    public void InstansiateTrophies(int tablePointSize, int numOfThrophies, int[,] table)
+    {
+        if (numOfThrophies < (Math.Pow(tablePointSize, 2) / 3))
+        {
+            int initial_place = (((-size / 2)) * square_size);
+            for (int i = 0; i < numOfThrophies; i++)
+            {
+                int row = UnityEngine.Random.Range(0, tablePointSize);
+                int column = UnityEngine.Random.Range(0, tablePointSize);
+                if (table[row, column] == 1)
+                {
+                    GameObject trophy = Instantiate(Trophy, new Vector3(initial_place + (row * 2 * square_size), 0.4f, initial_place + (column * 2 * square_size)), Quaternion.identity);
+                    trophy.transform.localScale = new Vector3(5, 5, 5);
+                    Debug.Log("Row: " + row + ". Column: " + column);
+                    table[row, column] = 2;
+                }
+                else
+                {
+                    i--;
+                }
+            }
+            GameObject finnishTrophy = Instantiate(Trophy, new Vector3(initial_place + ((tablePointSize - 1)* 2 * square_size), 0.4f, initial_place + ((tablePointSize - 0.5f) * 2 * square_size)), Quaternion.identity);
+            finnishTrophy.transform.localScale = new Vector3(5, 5, 5);
+        }
     }
 }
